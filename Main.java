@@ -1,7 +1,8 @@
 package com.company;
 
-import java.text.DecimalFormat;
 import java.util.Arrays;
+
+import static java.lang.Math.*;
 
 public class Main {
 
@@ -10,9 +11,6 @@ public class Main {
         Distribution ds = new Distribution();
         ds.setParameters();
         ds.printWithdrawalFlow();
-
-	    System.out.println("Finished.");
-
     }
 }
 
@@ -27,16 +25,20 @@ class Distribution {
     int T[];
     double s[];
 
-    //public Distribution() { this( new int[] { 0, 1, 10, 25, 35, 50 }, 4, 121 ); }
-    public Distribution() { this( new int[] { 0, 1, 10, 25, 35 }, 4, 71 ); }
-    public Distribution(int dust_wallets[], int nr_epochs, int total_airdrop) {
-        wallets = Arrays.copyOf( dust_wallets, dust_wallets.length );
+    public Distribution() { this( new int[] { 0, 1, 10, 25, 35, 50, 71, 156 }, 9 ); }
+
+    public Distribution(int d_wallets[], int nr_epochs) {
+        wallets = Arrays.copyOf( d_wallets, d_wallets.length );
         N = nr_epochs;
-        S = total_airdrop;
+
+        int sm = 0;
+        for(int i = 0; i < d_wallets.length; ++i ) sm += d_wallets[ i ];
+
+        S = sm;
         L = wallets.length - 1;
 
         F = S / (double)N;
-        T = new int[ N + 1 ]; // using indexes starting from 1, not 0 - just for convenience to follow spec
+        T = new int[ N + 1 ]; // using indexes starting from 1, not 0 
         s = new double[ N + 1 ]; // using indexes starting from 1, not 0
     }
 
@@ -50,14 +52,13 @@ class Distribution {
             int tc = t + 1;
             double sm = 0;
 
-            //double sa = ( F - (wallets[ tc ] - paid2acc) ) / (L - (tc - T[ epoch - 1 ]) );
-            double sa = ( F - (wallets[ tc ] - paid2acc) ) / ( L - (tc - T[ epoch - 1 ] ) );
+            double sa = ( F - (wallets[ tc ] - paid2acc) ) / ( L - tc );
 
             while ( wallets[ tc ] - paid2acc < sa  ){
                 s[ epoch ] = sa;
                 sm += wallets[ tc ] - paid2acc;
                 t = tc++;
-                sa = ( F - sm - (wallets[ tc ] - paid2acc) ) / ( L - (tc - T[ epoch - 1 ] ) );
+                sa = ( F - sm - (wallets[ tc ] - paid2acc) ) / ( L - tc );
             }
 
             T[ epoch ] = t;
@@ -72,11 +73,11 @@ class Distribution {
             return wallets[ wallet_index ];
         }
 
-        int withdrawP = 0;
+        double withdrawP = 0;
         for(int i = 1; i <= epoch - 1; ++i )
             withdrawP += s[ i ];
 
-        return Math.min( (r * s[ epoch ]), (double) wallets[ wallet_index ] - withdrawP ) + withdrawP;
+        return withdrawP + min( r * s[ epoch ], (double) wallets[ wallet_index ] - withdrawP );
     }
 
 
@@ -84,13 +85,19 @@ class Distribution {
         System.out.printf( "%3d | %4d | ", wallet_index, wallets[ wallet_index ] );
 
         for(int i = 1; i <= N; ++i)
-            System.out.printf("%.2f |", withdraw(wallet_index, i, 1));
+            System.out.printf("%6.2f |", withdraw(wallet_index, i, 1));
 
         System.out.println();
     }
 
     public void printWithdrawalFlow() {
-        System.out.println( "Per epoch: " + F );
+        System.out.println( "Total per epoch: " + F );
+
+        System.out.printf("%7s|", "per wallet:");
+        for(int i = 1; i <= N; ++i )
+            System.out.printf("%6.2f |", s[ i ] );
+        System.out.println();
+
         for(int i = 1; i < wallets.length; ++i )
             printWalletFlow( i );
     }
